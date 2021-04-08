@@ -17,6 +17,8 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 
+import warnings
+
 from filterpy.monte_carlo import stratified_resample, residual_resample
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -112,13 +114,17 @@ def plot_random_pd():
           .5*norm(x, .5, .08) +
            np.sqrt(norm(x, 0.8, 0.06)) +0.1 * (1 - sigmoid(x, 0.45, 0.15)))
 
-    # hack because of bug `with plt.xkcd()` doesn't return context correctly
-    saved_state = mpl.rcParams.copy()
-    plt.xkcd()
-    plt.axes(xticks=[], yticks=[], frameon=False)
-    plt.plot(x, y2)
-    plt.ylim([0, max(y2)+.1])
-    mpl.rcParams.update(saved_state)
+    with warnings.catch_warnings():
+        # matplotlib warns about deprecated rcParams when you copy. Oye.
+        warnings.simplefilter("ignore", mpl.MatplotlibDeprecationWarning)
+
+        # hack because of bug `with plt.xkcd()` doesn't return context correctly
+        saved_state = mpl.rcParams.copy()
+        plt.xkcd()
+        plt.axes(xticks=[], yticks=[], frameon=False)
+        plt.plot(x, y2)
+        plt.ylim([0, max(y2)+.1])
+        mpl.rcParams.update(saved_state)
 
 
 def plot_monte_carlo_ukf():
@@ -241,73 +247,6 @@ def show_two_pf_plots():
                 plt.scatter([x+1], [x+1], marker='x', color='r', s=180, label="True", lw=3)
                 plt.legend(scatterpoints=1)
             plt.tight_layout()
-
-
-def test_pf():
-
-    #seed(1234)
-    N = 10000
-    R = .2
-    landmarks = [[-1, 2], [20,4], [10,30], [18,25]]
-    #landmarks = [[-1, 2], [2,4]]
-
-    pf = RobotLocalizationParticleFilter(N, 20, 20, landmarks, R)
-
-    plot_pf(pf, 20, 20, weights=False)
-
-    dt = .01
-    plt.pause(dt)
-
-    for x in range(18):
-
-        zs = []
-        pos=(x+3, x+3)
-
-        for landmark in landmarks:
-            d = np.sqrt((landmark[0]-pos[0])**2 +  (landmark[1]-pos[1])**2)
-            zs.append(d + randn()*R)
-
-        pf.predict((0.01, 1.414), (.2, .05))
-        pf.update(z=zs)
-        pf.resample()
-        #print(x, np.array(list(zip(pf.particles, pf.weights))))
-
-        mu, var = pf.estimate()
-        plot_pf(pf, 20, 20, weights=False)
-        plt.plot(pos[0], pos[1], marker='*', color='r', ms=10)
-        plt.scatter(mu[0], mu[1], color='g', s=100)
-        plt.tight_layout()
-        plt.pause(dt)
-
-
-def test_pf2():
-    N = 1000
-    sensor_std_err = .2
-    landmarks = [[-1, 2], [20,4], [-20,6], [18,25]]
-
-    pf = RobotLocalizationParticleFilter(N, 20, 20, landmarks, sensor_std_err)
-
-    xs = []
-    for x in range(18):
-        zs = []
-        pos=(x+1, x+1)
-
-        for landmark in landmarks:
-            d = np.sqrt((landmark[0]-pos[0])**2 +  (landmark[1]-pos[1])**2)
-            zs.append(d + randn()*sensor_std_err)
-
-        # move diagonally forward to (x+1, x+1)
-        pf.predict((0.00, 1.414), (.2, .05))
-        pf.update(z=zs)
-        pf.resample()
-
-        mu, var = pf.estimate()
-        xs.append(mu)
-
-    xs = np.array(xs)
-    plt.plot(xs[:, 0], xs[:, 1])
-    plt.show()
-
 
 
 def plot_cumsum(a):

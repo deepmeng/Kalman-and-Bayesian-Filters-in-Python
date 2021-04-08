@@ -1,2 +1,7 @@
 filterpy
-seaborn
+jupyter
+notebook
+sympy
+numpy
+scipy
+matplotlib
